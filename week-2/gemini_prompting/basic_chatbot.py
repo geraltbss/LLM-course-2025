@@ -5,7 +5,7 @@ import configparser
 
 API_KEY = os.environ.get("GEMINI_API_KEY")
 genai.configure(api_key=API_KEY)
-LLM = "gemini-1.5-flash"
+LLM = "gemini-2.5-flash"
 model = genai.GenerativeModel(LLM)
 
 # Read system prompts from config file
