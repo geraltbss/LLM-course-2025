@@ -12,7 +12,7 @@ import stqdm
 # Requires !pip install sentence-transformers
 from sentence_transformers import SentenceTransformer
 
-min_token_length = 50 #finnish words can be quite lomg
+min_token_length = 50 #finnish words can be quite long
 st.write("Mallien alustus")
 
 if not get_from_session(st, SESSION_VARS.LOADED_MODELS):
@@ -84,7 +84,7 @@ if uploaded_file is not None:
             pages_and_chunks = chunks_to_text_elems(pages_and_texts)
             st.write("Ladataan DataFrameen")
             df = pd.DataFrame(pages_and_chunks)
-            # Let's filter our DataFrame/list of dictionaries to only include chunks with over 30 tokens in length
+            # Let's filter our DataFrame/list of dictionaries to only include chunks with over 50 tokens in length
             pages_and_chunks_over_min_token_len = df[df["chunk_token_count"] > min_token_length].to_dict(orient="records")
             st.write("Luodaan upotukset")
             embed_chunks(pages_and_chunks_over_min_token_len, get_from_session(st, SESSION_VARS.EMBEDDING_MODEL_CPU))
