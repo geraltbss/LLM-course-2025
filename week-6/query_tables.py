@@ -47,6 +47,8 @@ context = "\n\n".join(table_sections)
 questions = [
     "What was Google's operating margin for Q1 2024?",
     "What percentage of revenues is net income?",
+    "How much did operating income exceed costs and expenses?",
+    "Which expense category contributes the most to total costs?",
 ]
 
 for question in questions:
