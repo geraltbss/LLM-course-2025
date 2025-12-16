@@ -27,20 +27,41 @@ pdf_reader = LayoutPDFReader(llmsherpa_api_url)
 doc = pdf_reader.read_pdf(pdf_url)
 
 # Get data from the Section by Title
-selected_section = None
+table_sections = []
+
 for section in doc.sections():
-    if 'Q1 2024 Financial Highlights' in section.title:
-        selected_section = section
-        break
+    # Heuristic: include sections that contain tables or look tabular
+    html = section.to_html(include_children=True, recurse=True)
+    if "<table" in html.lower():
+        table_sections.append(
+            f"<h2>{section.title}</h2>\n{html}"
+        )
 
-# Convert the output in HTML format
-context = selected_section.to_html(include_children=True, recurse=True)
-question = "What was Google's operating margin for 2024"
-resp = llm.complete(
-    f"read this table and answer question: {question}:\n{context}")
-print(resp.text)
+print(f"Found {len(table_sections)} sections containing tables")
 
-question = "What % Net income is of the Revenues?"
-resp = llm.complete(
-    f"read this table and answer question: {question}:\n{context}")
-print(resp.text)
+# Combine all table sections into one context
+context = "\n\n".join(table_sections)
+
+# Ask questions
+
+questions = [
+    "What was Google's operating margin for Q1 2024?",
+    "What percentage of revenues is net income?",
+]
+
+for question in questions:
+    resp = llm.complete(
+        f"""
+You are given financial tables extracted from a PDF.
+Read the tables carefully and answer the question.
+If a calculation is needed, explain it briefly.
+
+Question: {question}
+
+Tables:
+{context}
+"""
+    )
+    print(f"Q: {question}")
+    print(f"A: {resp.text}")
+    print("-" * 80)
