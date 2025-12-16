@@ -2,12 +2,13 @@ import streamlit as st
 import spacy
 from util import pdf_utils
 from util.embedings_utils import embed_chunks, save_embeddings, embeddings_to_tensor
-from util.nlp_utils import sentencize, chunk, chunks_to_text_elems
+from util.nlp_utils import sentencize
 import pandas as pd
 from util.generator_utils import load_tokenizer, tokenize_with_chat, tokenize_with_rag_prompt, load_gemma, generate_answer
 from util.session_utils import SESSION_VARS, put_to_session, get_from_session, print_session
 from util.vector_search_utils import retrieve_relevant_resources
 import stqdm
+from util.nlp_utils import semantic_chunker
 
 # Requires !pip install sentence-transformers
 from sentence_transformers import SentenceTransformer
@@ -25,7 +26,7 @@ if not get_from_session(st, SESSION_VARS.LOADED_MODELS):
     put_to_session(st, SESSION_VARS.NLP, nlp)
 
     embedding_model_cpu = SentenceTransformer(model_name_or_path="sentence-transformers/paraphrase-multilingual-mpnet-base-v2",
-                                          device="cpu") # Loaded a multilingual model
+                                          device="cuda") # Loaded a multilingual model
     put_to_session(st, SESSION_VARS.EMBEDDING_MODEL_CPU, embedding_model_cpu)
 
     # Gemma
@@ -77,11 +78,38 @@ if uploaded_file is not None:
             # extract sentences
             st.write("Lausejako (Finnish NLP)")
             sentencize(pages_and_texts, get_from_session(st, SESSION_VARS.NLP))
-            # chunk
-            st.write("Lohkominen (baseline)")
-            chunk(pages_and_texts)
-            # chunks to text elems
-            pages_and_chunks = chunks_to_text_elems(pages_and_texts)
+            # semantic chunk
+            st.write("Lohkominen (semantic)")
+            pages_and_chunks = []
+            embedder = get_from_session(st, SESSION_VARS.EMBEDDING_MODEL_CPU)
+            progress_bar = st.progress(0)
+            status_text = st.empty()
+                
+            for idx, page in enumerate(pages_and_texts):
+                status_text.text(f"Käsitellään sivua {idx + 1}/{len(pages_and_texts)}")
+                progress_bar.progress((idx + 1) / len(pages_and_texts))
+                    
+                sentences = page["sentences"]
+                    
+                # Skip pages with no sentences
+                if not sentences:
+                    continue
+                    
+                semantic_chunks = semantic_chunker(
+                    sentences,
+                    embedder,
+                    similarity_threshold=0.7,
+                )
+                    
+                for chunk_text in semantic_chunks:
+                    pages_and_chunks.append({
+                        "page_number": page["page_number"],
+                        "sentence_chunk": chunk_text,
+                        "chunk_token_count": len(chunk_text.split())
+                    })
+                
+            status_text.text("✓ Lohkominen valmis")
+            progress_bar.empty()
             st.write("Ladataan DataFrameen")
             df = pd.DataFrame(pages_and_chunks)
             # Let's filter our DataFrame/list of dictionaries to only include chunks with over 50 tokens in length
